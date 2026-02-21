@@ -162,7 +162,10 @@ class _RuleManagementScreenState extends State<RuleManagementScreen> {
           trailing: CupertinoButton(
             padding: EdgeInsets.zero,
             onPressed: _createNewSet,
-            child: const Icon(CupertinoIcons.folder_badge_plus),
+            child: const Tooltip(
+              message: 'Create New Rule Set',
+              child: Icon(CupertinoIcons.folder_badge_plus),
+            ),
           ),
         ),
         child: SafeArea(child: _buildBody(true)),
@@ -175,6 +178,7 @@ class _RuleManagementScreenState extends State<RuleManagementScreen> {
             IconButton(
               onPressed: _createNewSet,
               icon: const Icon(Icons.create_new_folder),
+              tooltip: 'Create New Rule Set',
             ),
           ],
         ),
@@ -242,6 +246,7 @@ class _RuleManagementScreenState extends State<RuleManagementScreen> {
             IconButton(
               icon: const Icon(Icons.edit, size: 18),
               onPressed: () => _editSetName(isApple),
+              tooltip: 'Rename Set',
             ),
             IconButton(
               icon: const Icon(
@@ -250,6 +255,7 @@ class _RuleManagementScreenState extends State<RuleManagementScreen> {
                 color: Colors.red,
               ),
               onPressed: () => _deleteSet(_activeSetId!),
+              tooltip: 'Delete Set',
             ),
           ],
         ],
@@ -373,6 +379,7 @@ class _RuleManagementScreenState extends State<RuleManagementScreen> {
                     size: 20,
                   ),
                   onPressed: () => _removeRuleFromSet(ruleId),
+                  tooltip: 'Remove from Set',
                 ),
               );
             },
@@ -397,6 +404,7 @@ class _RuleManagementScreenState extends State<RuleManagementScreen> {
               IconButton(
                 icon: const Icon(Icons.add_circle_outline, size: 20),
                 onPressed: _addRuleToMaster,
+                tooltip: 'Create New Global Rule',
               ),
             ],
           ),
@@ -422,6 +430,7 @@ class _RuleManagementScreenState extends State<RuleManagementScreen> {
                     IconButton(
                       icon: const Icon(Icons.edit, size: 18),
                       onPressed: () => _editMasterRule(rule),
+                      tooltip: 'Edit Global Rule',
                     ),
                     IconButton(
                       icon: Icon(
@@ -430,6 +439,7 @@ class _RuleManagementScreenState extends State<RuleManagementScreen> {
                         size: 20,
                       ),
                       onPressed: inSet ? null : () => _addRuleToSet(rule.id),
+                      tooltip: inSet ? 'Already in Set' : 'Add to Set',
                     ),
                   ],
                 ),

@@ -187,12 +187,18 @@ class _TextTransformHomeState extends State<TextTransformHome> {
           leading: CupertinoButton(
             padding: EdgeInsets.zero,
             onPressed: _manageRules,
-            child: const Icon(CupertinoIcons.settings),
+            child: const Tooltip(
+              message: 'Manage Rule Sets',
+              child: Icon(CupertinoIcons.settings),
+            ),
           ),
           trailing: CupertinoButton(
             padding: EdgeInsets.zero,
             onPressed: _clearAll,
-            child: const Icon(CupertinoIcons.delete),
+            child: const Tooltip(
+              message: 'Clear Input and Output',
+              child: Icon(CupertinoIcons.delete),
+            ),
           ),
         ),
         child: SafeArea(
@@ -210,11 +216,13 @@ class _TextTransformHomeState extends State<TextTransformHome> {
           leading: IconButton(
             onPressed: _manageRules,
             icon: const Icon(Icons.settings),
+            tooltip: 'Manage Rule Sets',
           ),
           actions: [
             IconButton(
               onPressed: _clearAll,
               icon: const Icon(Icons.delete_outline),
+              tooltip: 'Clear Input and Output',
             ),
           ],
         ),
@@ -461,7 +469,10 @@ class _TextTransformHomeState extends State<TextTransformHome> {
                 onPressed: _copyToClipboard,
                 child: const Row(
                   children: [
-                    Icon(CupertinoIcons.doc_on_doc, size: 18),
+                    Tooltip(
+                      message: 'Copy to Clipboard',
+                      child: Icon(CupertinoIcons.doc_on_doc, size: 18),
+                    ),
                     SizedBox(width: 4),
                     Text('Copy Result'),
                   ],
