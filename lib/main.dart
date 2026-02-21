@@ -3,8 +3,8 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'dart:io' show Platform;
 import 'models/text_transformation.dart';
-import 'widgets/rule_editor.dart';
 import 'widgets/rule_item.dart';
+import 'screens/rule_management_screen.dart';
 
 import 'package:flutter_localizations/flutter_localizations.dart';
 
@@ -105,50 +105,32 @@ class _TextTransformHomeState extends State<TextTransformHome> {
     });
   }
 
-  void _addRule() {
-    _showRuleEditor(null);
-  }
-
-  void _editRule(int index) {
-    _showRuleEditor(_rules[index], index: index);
-  }
-
-  void _deleteRule(int index) {
-    setState(() {
-      _rules.removeAt(index);
-    });
-    _saveRules();
-  }
-
-  void _showRuleEditor(TransformationRule? rule, {int? index}) {
-    final editor = RuleEditor(
-      rule: rule,
-      onSave: (updatedRule) {
-        setState(() {
-          if (index != null) {
-            _rules[index] = updatedRule;
-          } else {
-            _rules.add(updatedRule);
-          }
-        });
-        _saveRules();
-      },
-    );
-
+  void _manageRules() {
     if (Platform.isIOS || Platform.isMacOS) {
-      Navigator.of(context).push(CupertinoPageRoute(builder: (_) => editor));
+      Navigator.of(context).push(
+        CupertinoPageRoute(
+          builder: (_) => RuleManagementScreen(
+            rules: _rules,
+            onRulesChanged: (newRules) {
+              setState(() => _rules = newRules);
+              _saveRules();
+            },
+          ),
+        ),
+      );
     } else {
-      Navigator.of(context).push(MaterialPageRoute(builder: (_) => editor));
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => RuleManagementScreen(
+            rules: _rules,
+            onRulesChanged: (newRules) {
+              setState(() => _rules = newRules);
+              _saveRules();
+            },
+          ),
+        ),
+      );
     }
-  }
-
-  void _onReorder(int oldIndex, int newIndex) {
-    setState(() {
-      if (newIndex > oldIndex) newIndex -= 1;
-      final item = _rules.removeAt(oldIndex);
-      _rules.insert(newIndex, item);
-    });
-    _saveRules();
   }
 
   @override
@@ -165,8 +147,8 @@ class _TextTransformHomeState extends State<TextTransformHome> {
           middle: const Text('TextTransform'),
           leading: CupertinoButton(
             padding: EdgeInsets.zero,
-            onPressed: _addRule,
-            child: const Icon(CupertinoIcons.add),
+            onPressed: _manageRules,
+            child: const Icon(CupertinoIcons.settings),
           ),
           trailing: CupertinoButton(
             padding: EdgeInsets.zero,
@@ -186,7 +168,10 @@ class _TextTransformHomeState extends State<TextTransformHome> {
         appBar: AppBar(
           title: const Text('TextTransform'),
           backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-          leading: IconButton(onPressed: _addRule, icon: const Icon(Icons.add)),
+          leading: IconButton(
+            onPressed: _manageRules,
+            icon: const Icon(Icons.settings),
+          ),
           actions: [
             IconButton(
               onPressed: _clearAll,
@@ -208,7 +193,8 @@ class _TextTransformHomeState extends State<TextTransformHome> {
   }
 
   Widget _buildAdaptiveLayout(BoxConstraints constraints, bool isApple) {
-    if (constraints.maxWidth > 900) {
+    // Landscape if width > height
+    if (constraints.maxWidth > constraints.maxHeight) {
       return Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -244,10 +230,7 @@ class _TextTransformHomeState extends State<TextTransformHome> {
               children: [
                 Padding(
                   padding: const EdgeInsets.all(16.0),
-                  child: _buildSectionHeader(
-                    'Rules (Drag to Reorder)',
-                    isApple,
-                  ),
+                  child: _buildSectionHeader('Rules', isApple),
                 ),
                 Expanded(
                   child: Scrollbar(
@@ -282,7 +265,7 @@ class _TextTransformHomeState extends State<TextTransformHome> {
           _buildSectionHeader('Input', isApple),
           _buildInputField(isApple, height: 200),
           const SizedBox(height: 24),
-          _buildSectionHeader('Rules (Drag to Reorder)', isApple),
+          _buildSectionHeader('Rules', isApple),
           _buildRulesList(isApple, shrinkWrap: true),
           const SizedBox(height: 24),
           _buildSectionHeader('Result', isApple),
@@ -325,9 +308,11 @@ class _TextTransformHomeState extends State<TextTransformHome> {
       return Container(
         height: height,
         decoration: BoxDecoration(
-          border: Border.all(color: CupertinoColors.separator),
+          border: Border.all(
+            color: CupertinoColors.separator.resolveFrom(context),
+          ),
           borderRadius: BorderRadius.circular(8),
-          color: CupertinoColors.systemBackground,
+          color: CupertinoColors.systemBackground.resolveFrom(context),
         ),
         child: CupertinoTextField(
           controller: _inputController,
@@ -336,9 +321,11 @@ class _TextTransformHomeState extends State<TextTransformHome> {
           expands: height == null,
           padding: const EdgeInsets.all(12),
           decoration: null,
-          style: CupertinoTheme.of(
-            context,
-          ).textTheme.textStyle.copyWith(fontFamily: 'monospace', fontSize: 15),
+          style: CupertinoTheme.of(context).textTheme.textStyle.copyWith(
+            fontFamily: 'monospace',
+            fontSize: 15,
+            color: CupertinoColors.label.resolveFrom(context),
+          ),
         ),
       );
     } else {
@@ -366,9 +353,13 @@ class _TextTransformHomeState extends State<TextTransformHome> {
         ? Container(
             height: height,
             decoration: BoxDecoration(
-              border: Border.all(color: CupertinoColors.separator),
+              border: Border.all(
+                color: CupertinoColors.separator.resolveFrom(context),
+              ),
               borderRadius: BorderRadius.circular(8),
-              color: CupertinoColors.systemGroupedBackground,
+              color: CupertinoColors.systemGroupedBackground.resolveFrom(
+                context,
+              ),
             ),
             child: CupertinoTextField(
               controller: _outputController,
@@ -380,9 +371,7 @@ class _TextTransformHomeState extends State<TextTransformHome> {
               style: CupertinoTheme.of(context).textTheme.textStyle.copyWith(
                 fontFamily: 'monospace',
                 fontSize: 15,
-                color: CupertinoColors.label
-                    .resolveFrom(context)
-                    .withOpacity(0.8),
+                color: CupertinoColors.label.resolveFrom(context),
               ),
             ),
           )
@@ -441,39 +430,15 @@ class _TextTransformHomeState extends State<TextTransformHome> {
   }
 
   Widget _buildRulesList(bool isApple, {bool shrinkWrap = false}) {
-    return ReorderableListView.builder(
+    return ListView.builder(
       shrinkWrap: shrinkWrap,
       physics: shrinkWrap ? const NeverScrollableScrollPhysics() : null,
       itemCount: _rules.length,
-      onReorder: _onReorder,
       itemBuilder: (context, index) {
-        return Dismissible(
-          key: ValueKey(_rules[index].id),
-          direction: DismissDirection.endToStart,
-          background: Container(
-            color: Colors.red,
-            alignment: Alignment.centerRight,
-            padding: const EdgeInsets.only(right: 20),
-            child: const Icon(Icons.delete, color: Colors.white),
-          ),
-          onDismissed: (_) => _deleteRule(index),
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: () => _editRule(index),
-              child: RuleItem(
-                rule: _rules[index],
-                onToggle: (value) {
-                  setState(
-                    () => _rules[index] = _rules[index].copyWith(
-                      isEnabled: value ?? false,
-                    ),
-                  );
-                  _saveRules();
-                },
-              ),
-            ),
-          ),
+        return RuleItem(
+          rule: _rules[index],
+          onToggle: (_) {}, // No toggling in main view
+          isCompact: true,
         );
       },
     );
