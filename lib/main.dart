@@ -210,21 +210,22 @@ class _TextTransformHomeState extends State<TextTransformHome> {
   Widget _buildAdaptiveLayout(BoxConstraints constraints, bool isApple) {
     if (constraints.maxWidth > 900) {
       return Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Left Column: Input
           Expanded(
-            flex: 4,
+            flex: 3,
             child: Padding(
               padding: const EdgeInsets.all(16.0),
               child: Column(
                 children: [
                   _buildSectionHeader('Input', isApple),
+                  const SizedBox(height: 8),
                   Expanded(child: _buildInputField(isApple)),
-                  const SizedBox(height: 16),
-                  _buildSectionHeader('Result', isApple),
-                  Expanded(child: _buildOutputField(isApple)),
                   if (isApple) ...[
                     const SizedBox(height: 16),
                     SizedBox(
+                      width: double.infinity,
                       child: CupertinoButton.filled(
                         onPressed: _transformText,
                         child: const Text('Transform Text'),
@@ -236,6 +237,7 @@ class _TextTransformHomeState extends State<TextTransformHome> {
             ),
           ),
           const VerticalDivider(width: 1),
+          // Middle Column: Rules
           Expanded(
             flex: 3,
             child: Column(
@@ -247,8 +249,28 @@ class _TextTransformHomeState extends State<TextTransformHome> {
                     isApple,
                   ),
                 ),
-                Expanded(child: _buildRulesList(isApple)),
+                Expanded(
+                  child: Scrollbar(
+                    thumbVisibility: true,
+                    child: _buildRulesList(isApple),
+                  ),
+                ),
               ],
+            ),
+          ),
+          const VerticalDivider(width: 1),
+          // Right Column: Result
+          Expanded(
+            flex: 3,
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                children: [
+                  _buildSectionHeader('Result', isApple),
+                  const SizedBox(height: 8),
+                  Expanded(child: _buildOutputField(isApple)),
+                ],
+              ),
             ),
           ),
         ],
@@ -314,7 +336,9 @@ class _TextTransformHomeState extends State<TextTransformHome> {
           expands: height == null,
           padding: const EdgeInsets.all(12),
           decoration: null,
-          style: const TextStyle(fontFamily: 'monospace', fontSize: 13),
+          style: CupertinoTheme.of(
+            context,
+          ).textTheme.textStyle.copyWith(fontFamily: 'monospace', fontSize: 15),
         ),
       );
     } else {
@@ -331,7 +355,7 @@ class _TextTransformHomeState extends State<TextTransformHome> {
             filled: true,
             fillColor: Colors.grey[50],
           ),
-          style: const TextStyle(fontFamily: 'monospace', fontSize: 13),
+          style: const TextStyle(fontFamily: 'monospace', fontSize: 15),
         ),
       );
     }
@@ -353,7 +377,13 @@ class _TextTransformHomeState extends State<TextTransformHome> {
               expands: height == null,
               padding: const EdgeInsets.all(12),
               decoration: null,
-              style: const TextStyle(fontFamily: 'monospace', fontSize: 13),
+              style: CupertinoTheme.of(context).textTheme.textStyle.copyWith(
+                fontFamily: 'monospace',
+                fontSize: 15,
+                color: CupertinoColors.label
+                    .resolveFrom(context)
+                    .withOpacity(0.8),
+              ),
             ),
           )
         : SizedBox(
@@ -371,7 +401,11 @@ class _TextTransformHomeState extends State<TextTransformHome> {
                 filled: true,
                 fillColor: Colors.blue[50]?.withOpacity(0.3),
               ),
-              style: const TextStyle(fontFamily: 'monospace', fontSize: 13),
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                fontFamily: 'monospace',
+                fontSize: 15,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
           );
 
@@ -423,18 +457,21 @@ class _TextTransformHomeState extends State<TextTransformHome> {
             child: const Icon(Icons.delete, color: Colors.white),
           ),
           onDismissed: (_) => _deleteRule(index),
-          child: InkWell(
-            onTap: () => _editRule(index),
-            child: RuleItem(
-              rule: _rules[index],
-              onToggle: (value) {
-                setState(
-                  () => _rules[index] = _rules[index].copyWith(
-                    isEnabled: value ?? false,
-                  ),
-                );
-                _saveRules();
-              },
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () => _editRule(index),
+              child: RuleItem(
+                rule: _rules[index],
+                onToggle: (value) {
+                  setState(
+                    () => _rules[index] = _rules[index].copyWith(
+                      isEnabled: value ?? false,
+                    ),
+                  );
+                  _saveRules();
+                },
+              ),
             ),
           ),
         );
