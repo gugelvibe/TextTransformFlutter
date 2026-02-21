@@ -59,20 +59,48 @@ class TransformationRule {
   }
 }
 
+class RuleSet {
+  final String id;
+  final String name;
+  final List<String> ruleIds;
+
+  RuleSet({required this.id, required this.name, required this.ruleIds});
+
+  RuleSet copyWith({String? id, String? name, List<String>? ruleIds}) {
+    return RuleSet(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      ruleIds: ruleIds ?? this.ruleIds,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {'id': id, 'name': name, 'ruleIds': ruleIds};
+  }
+
+  factory RuleSet.fromJson(Map<String, dynamic> json) {
+    return RuleSet(
+      id: json['id'] as String,
+      name: json['name'] as String,
+      ruleIds: (json['ruleIds'] as List).cast<String>(),
+    );
+  }
+}
+
 class TextTransformer {
-  static const String _storageKey = 'transformation_rules';
+  static const String _masterRulesKey = 'master_transformation_rules';
+  static const String _ruleSetsKey = 'transformation_rule_sets';
+  static const String _activeSetKey = 'active_rule_set_id';
 
   static String transform(String input, List<TransformationRule> rules) {
     String output = input;
+    // For Rule Sets, we assume all rules passed to this function are meant to be applied.
     for (var rule in rules) {
-      if (!rule.isEnabled) continue;
-
       try {
         if (rule.isRegex) {
           final regex = RegExp(rule.pattern, multiLine: true);
           output = output.replaceAllMapped(regex, (match) {
             String replacement = rule.replacement;
-            // Handle groups like $1, $2...
             for (int i = 0; i <= match.groupCount; i++) {
               replacement = replacement.replaceAll(
                 '\$$i',
@@ -85,22 +113,21 @@ class TextTransformer {
           output = output.replaceAll(rule.pattern, rule.replacement);
         }
       } catch (e) {
-        // Skip invalid regex rules silently for now
         continue;
       }
     }
     return output;
   }
 
-  static Future<void> saveRules(List<TransformationRule> rules) async {
+  static Future<void> saveMasterRules(List<TransformationRule> rules) async {
     final prefs = await SharedPreferences.getInstance();
     final jsonList = rules.map((r) => r.toJson()).toList();
-    await prefs.setString(_storageKey, jsonEncode(jsonList));
+    await prefs.setString(_masterRulesKey, jsonEncode(jsonList));
   }
 
-  static Future<List<TransformationRule>> loadRules() async {
+  static Future<List<TransformationRule>> loadMasterRules() async {
     final prefs = await SharedPreferences.getInstance();
-    final jsonStr = prefs.getString(_storageKey);
+    final jsonStr = prefs.getString(_masterRulesKey);
     if (jsonStr == null) {
       return getDefaultRules();
     }
@@ -112,6 +139,44 @@ class TextTransformer {
     } catch (e) {
       return getDefaultRules();
     }
+  }
+
+  static Future<void> saveRuleSets(List<RuleSet> sets) async {
+    final prefs = await SharedPreferences.getInstance();
+    final jsonList = sets.map((s) => s.toJson()).toList();
+    await prefs.setString(_ruleSetsKey, jsonEncode(jsonList));
+  }
+
+  static Future<List<RuleSet>> loadRuleSets() async {
+    final prefs = await SharedPreferences.getInstance();
+    final jsonStr = prefs.getString(_ruleSetsKey);
+    if (jsonStr == null) {
+      return [
+        RuleSet(
+          id: 'default_set',
+          name: 'Default Set',
+          ruleIds: (await loadMasterRules()).map((r) => r.id).toList(),
+        ),
+      ];
+    }
+    try {
+      final jsonList = jsonDecode(jsonStr) as List;
+      return jsonList
+          .map((j) => RuleSet.fromJson(j as Map<String, dynamic>))
+          .toList();
+    } catch (e) {
+      return [];
+    }
+  }
+
+  static Future<void> saveActiveSetId(String id) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_activeSetKey, id);
+  }
+
+  static Future<String?> loadActiveSetId() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_activeSetKey);
   }
 
   static List<TransformationRule> getDefaultRules() {

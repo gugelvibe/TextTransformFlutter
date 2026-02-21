@@ -59,32 +59,59 @@ class TextTransformHome extends StatefulWidget {
 class _TextTransformHomeState extends State<TextTransformHome> {
   final TextEditingController _inputController = TextEditingController();
   final TextEditingController _outputController = TextEditingController();
-  List<TransformationRule> _rules = [];
+  List<TransformationRule> _masterRules = [];
+  List<RuleSet> _ruleSets = [];
+  String? _activeSetId;
   bool _isLoading = true;
+
+  RuleSet? get _activeSet => _ruleSets.isEmpty
+      ? null
+      : _ruleSets.firstWhere(
+          (s) => s.id == _activeSetId,
+          orElse: () => _ruleSets.first,
+        );
+
+  List<TransformationRule> get _currentRules {
+    final activeSet = _activeSet;
+    if (activeSet == null) return [];
+    return activeSet.ruleIds
+        .map((id) => _masterRules.firstWhere((r) => r.id == id))
+        .toList();
+  }
 
   @override
   void initState() {
     super.initState();
-    _loadInitialRules();
+    _loadInitialData();
   }
 
-  Future<void> _loadInitialRules() async {
-    final rules = await TextTransformer.loadRules();
+  Future<void> _loadInitialData() async {
+    final masterRules = await TextTransformer.loadMasterRules();
+    final ruleSets = await TextTransformer.loadRuleSets();
+    final activeSetId = await TextTransformer.loadActiveSetId();
+
     setState(() {
-      _rules = rules;
+      _masterRules = masterRules;
+      _ruleSets = ruleSets;
+      _activeSetId =
+          activeSetId ?? (ruleSets.isNotEmpty ? ruleSets.first.id : null);
       _isLoading = false;
     });
   }
 
-  Future<void> _saveRules() async {
-    await TextTransformer.saveRules(_rules);
+  Future<void> _saveData() async {
+    await TextTransformer.saveMasterRules(_masterRules);
+    await TextTransformer.saveRuleSets(_ruleSets);
+    if (_activeSetId != null) {
+      await TextTransformer.saveActiveSetId(_activeSetId!);
+    }
   }
 
   void _transformText() {
     setState(() {
       _outputController.text = TextTransformer.transform(
         _inputController.text,
-        _rules,
+        _currentRules,
       );
     });
   }
@@ -110,10 +137,16 @@ class _TextTransformHomeState extends State<TextTransformHome> {
       Navigator.of(context).push(
         CupertinoPageRoute(
           builder: (_) => RuleManagementScreen(
-            rules: _rules,
-            onRulesChanged: (newRules) {
-              setState(() => _rules = newRules);
-              _saveRules();
+            masterRules: _masterRules,
+            ruleSets: _ruleSets,
+            activeSetId: _activeSetId,
+            onDataChanged: (newMasterRules, newRuleSets, newActiveSetId) {
+              setState(() {
+                _masterRules = newMasterRules;
+                _ruleSets = newRuleSets;
+                _activeSetId = newActiveSetId;
+              });
+              _saveData();
             },
           ),
         ),
@@ -122,10 +155,16 @@ class _TextTransformHomeState extends State<TextTransformHome> {
       Navigator.of(context).push(
         MaterialPageRoute(
           builder: (_) => RuleManagementScreen(
-            rules: _rules,
-            onRulesChanged: (newRules) {
-              setState(() => _rules = newRules);
-              _saveRules();
+            masterRules: _masterRules,
+            ruleSets: _ruleSets,
+            activeSetId: _activeSetId,
+            onDataChanged: (newMasterRules, newRuleSets, newActiveSetId) {
+              setState(() {
+                _masterRules = newMasterRules;
+                _ruleSets = newRuleSets;
+                _activeSetId = newActiveSetId;
+              });
+              _saveData();
             },
           ),
         ),
@@ -229,8 +268,17 @@ class _TextTransformHomeState extends State<TextTransformHome> {
             child: Column(
               children: [
                 Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: _buildSectionHeader('Rules', isApple),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16.0,
+                    vertical: 8.0,
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      _buildSectionHeader('Rules', isApple),
+                      _buildRuleSetSelector(isApple),
+                    ],
+                  ),
                 ),
                 Expanded(
                   child: Scrollbar(
@@ -266,6 +314,8 @@ class _TextTransformHomeState extends State<TextTransformHome> {
           _buildInputField(isApple, height: 200),
           const SizedBox(height: 24),
           _buildSectionHeader('Rules', isApple),
+          _buildRuleSetSelector(isApple),
+          const SizedBox(height: 8),
           _buildRulesList(isApple, shrinkWrap: true),
           const SizedBox(height: 24),
           _buildSectionHeader('Result', isApple),
@@ -388,7 +438,7 @@ class _TextTransformHomeState extends State<TextTransformHome> {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 filled: true,
-                fillColor: Colors.blue[50]?.withOpacity(0.3),
+                fillColor: Colors.blue[50]?.withValues(alpha: 0.3),
               ),
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 fontFamily: 'monospace',
@@ -430,17 +480,80 @@ class _TextTransformHomeState extends State<TextTransformHome> {
   }
 
   Widget _buildRulesList(bool isApple, {bool shrinkWrap = false}) {
+    final rules = _currentRules;
     return ListView.builder(
       shrinkWrap: shrinkWrap,
       physics: shrinkWrap ? const NeverScrollableScrollPhysics() : null,
-      itemCount: _rules.length,
+      itemCount: rules.length,
       itemBuilder: (context, index) {
         return RuleItem(
-          rule: _rules[index],
+          rule: rules[index],
           onToggle: (_) {}, // No toggling in main view
           isCompact: true,
         );
       },
+    );
+  }
+
+  Widget _buildRuleSetSelector(bool isApple) {
+    if (_ruleSets.isEmpty) return const SizedBox.shrink();
+
+    if (isApple) {
+      return CupertinoButton(
+        padding: EdgeInsets.zero,
+        onPressed: () => _showRuleSetPicker(),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              _activeSet?.name ?? 'Select Set',
+              style: const TextStyle(fontSize: 14),
+            ),
+            const Icon(CupertinoIcons.chevron_down, size: 14),
+          ],
+        ),
+      );
+    } else {
+      return DropdownButton<String>(
+        value: _activeSetId,
+        items: _ruleSets.map((set) {
+          return DropdownMenuItem(
+            value: set.id,
+            child: Text(set.name, style: const TextStyle(fontSize: 14)),
+          );
+        }).toList(),
+        onChanged: (value) {
+          if (value != null) {
+            setState(() => _activeSetId = value);
+            _saveData();
+          }
+        },
+        underline: const SizedBox.shrink(),
+      );
+    }
+  }
+
+  void _showRuleSetPicker() {
+    showCupertinoModalPopup(
+      context: context,
+      builder: (context) => CupertinoActionSheet(
+        title: const Text('Select Rule Set'),
+        actions: _ruleSets.map((set) {
+          return CupertinoActionSheetAction(
+            onPressed: () {
+              setState(() => _activeSetId = set.id);
+              _saveData();
+              Navigator.pop(context);
+            },
+            child: Text(set.name),
+          );
+        }).toList(),
+        cancelButton: CupertinoActionSheetAction(
+          onPressed: () => Navigator.pop(context),
+          isDefaultAction: true,
+          child: const Text('Cancel'),
+        ),
+      ),
     );
   }
 }
